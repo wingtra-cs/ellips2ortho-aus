@@ -1,0 +1,10 @@
+name: streamlit
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - pip=22.0.4=pyhd8ed1ab_0
+  - wheel=0.37.1=pyhd8ed1ab_0
+  - pip:
+    - gdal==3.4.1
+    - rasterio==1.2.10
