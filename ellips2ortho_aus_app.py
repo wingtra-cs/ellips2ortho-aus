@@ -112,7 +112,7 @@ if uploaded_csv is not None:
     country = requests.get(geo_request).json()['countryName']
 
     if country != 'Australia':
-        msg_out = 'Location out of scope. You are in ' + country + '.'
+        msg_out = 'Location out of scope. This app only covers Australia. You are in ' + country + '.'
         st.error(msg_out)
         st.stop()
     
