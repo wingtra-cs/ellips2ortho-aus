@@ -1,12 +1,12 @@
 --find-links=https://girder.github.io/large_image_wheels GDAL
 geemap
 geopandas
+geopy
 jupyter-server-proxy
 keplergl
 leafmap
 localtileserver
 nbserverproxy
-pygeo
 rasterio
 streamlit
 streamlit-option-menu
