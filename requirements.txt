@@ -6,6 +6,7 @@ keplergl
 leafmap
 localtileserver
 nbserverproxy
+pygeo
 rasterio
 streamlit
 streamlit-option-menu
