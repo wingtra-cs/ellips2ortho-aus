@@ -6,7 +6,7 @@ import pydeck as pdk
 import streamlit as st
 
 st.title('Ellipsoidal to Orthometric Heights')
-st.caption('The application uses the binary files provided by Geoscience Australia to look up the geoid height at a particular location and to then compute the orthometric height. The selection of a geoid model, automatically adjusts the horizontal coordinate system to either GDA 94 (AusGeoid09) or GDA 2020 (AusGeoid2020).')
+st.caption('The application uses the binary files provided by Geoscience Australia to look up the geoid height at a particular location and to then compute the orthometric height. The selection of a geoid model automatically adjusts the horizontal coordinate system to either GDA 94 (AusGeoid09) or GDA 2020 (AusGeoid2020).')
 
 def geo_to_cart(lat, lon, h):
     lat_rad = (lat/180)*math.pi
