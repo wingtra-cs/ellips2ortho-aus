@@ -5,9 +5,6 @@ import rasterio.sample
 import pydeck as pdk
 import streamlit as st
 
-geoid09_file = r"C:\Users\irwin\OneDrive\Desktop\Ellips2Ortho\au_ga_AUSGeoid09_V1.01.tif"
-geoid20_file = r"C:\Users\irwin\OneDrive\Desktop\Ellips2Ortho\au_ga_AUSGeoid2020_20170908.tif"
-
 def geo_to_cart(lat, lon, h):
     lat_rad = (lat/180)*math.pi
     lon_rad = (lon/180)*math.pi
@@ -125,7 +122,7 @@ if uploaded_csv is not None:
              data=points_df,
              get_position='[lon, lat]',
              get_color='[70, 130, 180, 200]',
-             get_radius=20,
+             get_radius=15,
          ),
          ],
      ))
