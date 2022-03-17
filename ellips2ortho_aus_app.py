@@ -108,7 +108,7 @@ if uploaded_csv is not None:
     lon = 'longitude [decimal degrees]'
     height = 'altitude [meter]'
 
-    geo_request = 'http://api.geonames.org/countryCode?lat=' + df[lat][0] + '&lng=' + df[lon][0] + '&type=json&username=irwinamago'
+    geo_request = 'http://api.geonames.org/countryCode?lat=' + str(df[lat][0]) + '&lng=' + str(df[lon][0]) + '&type=json&username=irwinamago'
     country = requests.get(geo_request).json()['countryName']
 
     if country != 'Australia':
