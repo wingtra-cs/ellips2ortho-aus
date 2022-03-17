@@ -4,7 +4,6 @@ import numpy
 import rasterio.sample
 import pydeck as pdk
 import streamlit as st
-from geopy.geocoders import Nominatim
 
 st.title('Ellipsoidal to Orthometric Heights')
 st.caption('The application uses the binary files provided by Geoscience Australia to look up the geoid height at a particular location and to then compute the orthometric height. The selection of a geoid model automatically adjusts the horizontal coordinate system to either GDA 94 (AusGeoid09) or GDA 2020 (AusGeoid2020).')
@@ -108,23 +107,12 @@ if uploaded_csv is not None:
     lon = 'longitude [decimal degrees]'
     height = 'altitude [meter]'
 
-    geolocator = Nominatim(user_agent='ellips2geoid')
-    location = geolocator.reverse(str(df[lat][0])+','+str(df[lon][0]))
-    country = location.address.split(', ')[-1]
-
-    if country != 'Australia':
-        msg_out = 'Location out of scope. You are in ' + country + '.'
-        st.error(msg_out)
-        st.stop()
+    geoid09_file = './au_ga_AUSGeoid09_V1.01.tif'
+    geoid20_file = './au_ga_AUSGeoid2020_20170908.tif'
     
-    else:
-        geoid09_file = './au_ga_AUSGeoid09_V1.01.tif'
-        geoid20_file = './au_ga_AUSGeoid2020_20170908.tif'
-    
+    points_df = pd.concat([df[lat], df[lon]], axis=1, keys=['lat','lon'])
         
-        points_df = pd.concat([df[lat], df[lon]], axis=1, keys=['lat','lon'])
-        
-        st.pydeck_chart(pdk.Deck(
+    st.pydeck_chart(pdk.Deck(
         map_style='mapbox://styles/mapbox/satellite-streets-v11',
         initial_view_state=pdk.ViewState(
             latitude=df[lat].mean(),
@@ -143,77 +131,77 @@ if uploaded_csv is not None:
              ],
          ))
     
-        # Geoid Selection
+    # Geoid Selection
     
-        geoid_select = st.selectbox('Please Choose Desired Geoid', ('<select>',
+    geoid_select = st.selectbox('Please Choose Desired Geoid', ('<select>',
                                                                     'AusGeoid09',
                                                                     'AusGeoid20',))
     
-        if not geoid_select=='<select>':
-            st.write('You selected:', geoid_select)
+    if not geoid_select=='<select>':
+        st.write('You selected:', geoid_select)
+
+    if uploaded_csv is not None and not geoid_select=='<select>':
+        if st.button('CONVERT HEIGHTS'):
     
-        if uploaded_csv is not None and not geoid_select=='<select>':
-            if st.button('CONVERT HEIGHTS'):
+            if geoid_select=='AusGeoid09':
+                ortho = []
+                geoid09 = rasterio.open(geoid09_file)
+                points = list(zip(df[lon].tolist(), df[lat].tolist()))
     
-                if geoid_select=='AusGeoid09':
-                    ortho = []
-                    geoid09 = rasterio.open(geoid09_file)
-                    points = list(zip(df[lon].tolist(), df[lat].tolist()))
+                i = 0
+                for val in geoid09.sample(points):
+                    ortho.append(df[height][i] - val[0])
+                    i += 1
     
-                    i = 0
-                    for val in geoid09.sample(points):
-                        ortho.append(df[height][i] - val[0])
-                        i += 1
+                df[height] = ortho
+                df.rename(columns={lat: 'latitude GDA94 [decimal degrees]',
+                                   lon: 'longitude GDA94 [decimal degrees]',
+                                   height: 'orthometric height AusGeoid09 [meters]'}, inplace=True)
     
-                    df[height] = ortho
-                    df.rename(columns={lat: 'latitude GDA94 [decimal degrees]',
-                                       lon: 'longitude GDA94 [decimal degrees]',
-                                       height: 'orthometric height AusGeoid09 [meters]'}, inplace=True)
+            else:
+                ortho = []
+                geoid20 = rasterio.open(geoid20_file)
     
-                else:
-                    ortho = []
-                    geoid20 = rasterio.open(geoid20_file)
+                # Convert Coordinates
+                lat_gda20 = []
+                lon_gda20 = []
+                h_gda20 = []
     
-                    # Convert Coordinates
-                    lat_gda20 = []
-                    lon_gda20 = []
-                    h_gda20 = []
+                for x in range(len(df[lat])):
+                    la, lo, h = gda94_to_gda2020(df[lat][x], df[lon][x], df[height][x])
+                    lat_gda20.append(la)
+                    lon_gda20.append(lo)
+                    h_gda20.append(h)
     
-                    for x in range(len(df[lat])):
-                        la, lo, h = gda94_to_gda2020(df[lat][x], df[lon][x], df[height][x])
-                        lat_gda20.append(la)
-                        lon_gda20.append(lo)
-                        h_gda20.append(h)
+                points = list(zip(lon_gda20,lat_gda20))
     
-                    points = list(zip(lon_gda20,lat_gda20))
+                i = 0
+                for val in geoid20.sample(points):
+                    ortho.append(h_gda20[i] - val[0])
+                    i += 1
     
-                    i = 0
-                    for val in geoid20.sample(points):
-                        ortho.append(h_gda20[i] - val[0])
-                        i += 1
+                df[lat] = lat_gda20
+                df[lon] = lon_gda20
+                df[height] = ortho
     
-                    df[lat] = lat_gda20
-                    df[lon] = lon_gda20
-                    df[height] = ortho
+                df.rename(columns={lat: 'latitude GDA20 [decimal degrees]',
+                                   lon: 'longitude GDA20 [decimal degrees]',
+                                   height: 'orthometric height AusGeoid20 [meters]'}, inplace=True)
     
-                    df.rename(columns={lat: 'latitude GDA20 [decimal degrees]',
-                                       lon: 'longitude GDA20 [decimal degrees]',
-                                       height: 'orthometric height AusGeoid20 [meters]'}, inplace=True)
+            st.success('Height conversion finished. Click button below to download new CSV.')
     
-                st.success('Height conversion finished. Click button below to download new CSV.')
+            def convert_df(df):
+                return df.to_csv(index=False).encode('utf-8')
     
-                def convert_df(df):
-                     return df.to_csv(index=False).encode('utf-8')
+            csv = convert_df(df)
+            filename = uploaded_csv.name.split('.')[0] + '_orthometric.csv'
     
-                csv = convert_df(df)
-                filename = uploaded_csv.name.split('.')[0] + '_orthometric.csv'
-    
-                st.download_button(
-                     label="Download Converted Geotags CSV",
-                     data=csv,
-                     file_name=filename,
-                     mime='text/csv',
-                 )
-        st.stop()
+            st.download_button(
+                label="Download Converted Geotags CSV",
+                data=csv,
+                file_name=filename,
+                mime='text/csv',
+                )
+    st.stop()
 else:
     st.stop()
