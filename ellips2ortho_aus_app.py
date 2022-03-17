@@ -112,7 +112,7 @@ if uploaded_csv is not None:
     points_df = pd.concat([df[lat], df[lon]], axis=1, keys=['lat','lon'])
     
     st.pydeck_chart(pdk.Deck(
-    map_style='mapbox://styles/mapbox/light-v9',
+    map_style='mapbox://styles/mapbox/satellite-streets-v11',
     initial_view_state=pdk.ViewState(
         latitude=df[lat].mean(),
         longitude=df[lon].mean(),
