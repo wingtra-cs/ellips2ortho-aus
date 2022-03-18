@@ -1,13 +1,23 @@
-import pandas as pd
 import math
 import numpy
-import rasterio.sample
+import pandas as pd
 import pydeck as pdk
+import rasterio.sample
 import requests
 import streamlit as st
+import zipfile
 
-st.title('Ellipsoidal to Orthometric Heights')
-st.caption('The application uses the binary files provided by Geoscience Australia to look up the geoid height at a particular location and to then compute the orthometric height. The selection of a geoid model automatically adjusts the horizontal coordinate system to either GDA 94 (AusGeoid09) or GDA 2020 (AusGeoid2020).')
+st.set_page_config(layout="wide")
+
+st.title('Ellipsoidal to Orthometric Heights (Australia)')
+
+st.sidebar.image('./logo.png', width = 260)
+st.sidebar.markdown('#')
+st.sidebar.write('The application uses the binary files provided by Geoscience Australia to look up the geoid height at a particular location and to then compute the orthometric height.')
+st.sidebar.write('The selection of a geoid model automatically adjusts the horizontal coordinate system to either GDA 94 (AusGeoid09) or GDA 2020 (AusGeoid2020).')
+st.sidebar.write('If you have any questions regarding the application, please contact us at support@wingtra.com.')
+st.sidebar.markdown('#')
+st.sidebar.info('This is a prototype application. Wingtra AG does not guarantee correct functionality. Use with discretion.')
 
 def geo_to_cart(lat, lon, h):
     lat_rad = (lat/180)*math.pi
@@ -97,37 +107,83 @@ def gda94_to_gda2020(lat, lon, h):
     
     return cart_to_geo(x1, y1, z1)
 
-uploaded_csv = st.file_uploader('Please Select Geotags CSV.')
+# Upload button for CSVs
 
-if uploaded_csv is not None:
-    df = pd.read_csv(uploaded_csv, index_col=False)
-    msg = 'Upload Successful: ' + uploaded_csv.name
-    st.success(msg)
-    
-    lat = 'latitude [decimal degrees]'
-    lon = 'longitude [decimal degrees]'
-    height = 'altitude [meter]'
+uploaded_csvs = st.file_uploader('Please Select Geotags CSV.', accept_multiple_files=True)
+uploaded = False
 
-    geo_request = 'http://api.geonames.org/countryCode?lat=' + str(df[lat][0]) + '&lng=' + str(df[lon][0]) + '&type=json&username=irwinamago'
-    country = requests.get(geo_request).json()['countryName']
-
-    if country != 'Australia':
-        msg_out = 'Location out of scope. This app only covers Australia. You are in ' + country + '.'
-        st.error(msg_out)
-        st.stop()
-    
+for uploaded_csv in uploaded_csvs: 
+    if uploaded_csv is not None:
+        uploaded = True
     else:
-        geoid09_file = './au_ga_AUSGeoid09_V1.01.tif'
-        geoid20_file = './au_ga_AUSGeoid2020_20170908.tif'
-    
+        uplaoded = False
+
+# Checking if upload of all CSVs is successful
+
+required_columns = ['# image name',
+                    'latitude [decimal degrees]',
+                    'longitude [decimal degrees]',
+                    'altitude [meter]',
+                    'accuracy horizontal [meter]',
+                    'accuracy vertical [meter]']
+
+if uploaded:
+    dfs = []
+    filenames = []
+    df_dict = {}
+    ctr = 0
+    for uploaded_csv in uploaded_csvs:
+        df = pd.read_csv(uploaded_csv, index_col=False)       
+        dfs.append(df)
+        df_dict[uploaded_csv.name] = ctr
+        filenames.append(uploaded_csv.name)
         
-        points_df = pd.concat([df[lat], df[lon]], axis=1, keys=['lat','lon'])
+        lat = 'latitude [decimal degrees]'
+        lon = 'longitude [decimal degrees]'
+        height = 'altitude [meter]'
+        
+        ctr += 1
+        
+        # Check if locations are within the United States
+        
+        url = 'http://api.geonames.org/countryCode?lat='
+        geo_request = url + str(df[lat][0]) + '&lng=' + str(df[lon][0]) + '&type=json&username=irwinamago'
+        country = requests.get(geo_request).json()['countryName']
+        
+        if country != 'Australia':
+            msg = 'Locations in ' + uploaded_csv.name + ' are outside Australia. Please remove to proceed.'
+            st.error(msg)
+            st.stop()
+
+        # Check if CSV is in the correct format
+        
+        format_check = True
+        for column in required_columns:
+            if column not in list(df.columns):
+                st.text(column + ' is not in ' + uploaded_csv.name + '.')
+                format_check = False
+        
+        if not format_check:
+            msg = uploaded_csv.name + ' is not in the correct format. Delete or reupload to proceed.'
+            st.error(msg)
+            st.stop()
+    
+    st.success('All CSVs checked and uploaded successfully.')
+    
+    map_options = filenames.copy()
+    map_options.insert(0, '<select>')
+    option = st.selectbox('Select geotags CSV to visualize', map_options)
+    
+    # Option to visualize any of the CSVs
+    
+    if option != '<select>':
+        points_df = pd.concat([dfs[df_dict[option]][lat], dfs[df_dict[option]][lon]], axis=1, keys=['lat','lon'])
         
         st.pydeck_chart(pdk.Deck(
         map_style='mapbox://styles/mapbox/satellite-streets-v11',
         initial_view_state=pdk.ViewState(
-            latitude=df[lat].mean(),
-            longitude=df[lon].mean(),
+            latitude=points_df['lat'].mean(),
+            longitude=points_df['lon'].mean(),
             zoom=14,
             pitch=0,
          ),
@@ -137,82 +193,100 @@ if uploaded_csv is not None:
                  data=points_df,
                  get_position='[lon, lat]',
                  get_color='[70, 130, 180, 200]',
-                 get_radius=15,
+                 get_radius=20,
              ),
              ],
          ))
     
-        # Geoid Selection
+    # Geoid Selection
     
-        geoid_select = st.selectbox('Please Choose Desired Geoid', ('<select>',
-                                                                    'AusGeoid09',
-                                                                    'AusGeoid20',))
+    geoid_select = st.selectbox('Please Choose Desired Geoid', ('<select>', 'AusGeoid09', 'AusGeoid20'))
+    if not geoid_select=='<select>':
+        st.write('You selected:', geoid_select)
     
-        if not geoid_select=='<select>':
-            st.write('You selected:', geoid_select)
-    
-        if uploaded_csv is not None and not geoid_select=='<select>':
-            if st.button('CONVERT HEIGHTS'):
-    
+    if uploaded and not geoid_select=='<select>':
+        if st.button('CONVERT HEIGHTS'):
+            geoid09_file = './au_ga_AUSGeoid09_V1.01.tif'
+            geoid20_file = './au_ga_AUSGeoid2020_20170908.tif'
+            file_ctr = 0
+            
+            for df in dfs:
                 if geoid_select=='AusGeoid09':
                     ortho = []
                     geoid09 = rasterio.open(geoid09_file)
                     points = list(zip(df[lon].tolist(), df[lat].tolist()))
-    
+        
                     i = 0
                     for val in geoid09.sample(points):
                         ortho.append(df[height][i] - val[0])
                         i += 1
-    
+        
                     df[height] = ortho
                     df.rename(columns={lat: 'latitude GDA94 [decimal degrees]',
                                        lon: 'longitude GDA94 [decimal degrees]',
                                        height: 'orthometric height AusGeoid09 [meters]'}, inplace=True)
-    
+        
                 else:
                     ortho = []
                     geoid20 = rasterio.open(geoid20_file)
-    
+        
                     # Convert Coordinates
                     lat_gda20 = []
                     lon_gda20 = []
                     h_gda20 = []
-    
+        
                     for x in range(len(df[lat])):
                         la, lo, h = gda94_to_gda2020(df[lat][x], df[lon][x], df[height][x])
                         lat_gda20.append(la)
                         lon_gda20.append(lo)
                         h_gda20.append(h)
-    
+        
                     points = list(zip(lon_gda20,lat_gda20))
-    
+        
                     i = 0
                     for val in geoid20.sample(points):
                         ortho.append(h_gda20[i] - val[0])
                         i += 1
-    
+        
                     df[lat] = lat_gda20
                     df[lon] = lon_gda20
                     df[height] = ortho
-    
+        
                     df.rename(columns={lat: 'latitude GDA20 [decimal degrees]',
                                        lon: 'longitude GDA20 [decimal degrees]',
                                        height: 'orthometric height AusGeoid20 [meters]'}, inplace=True)
     
-                st.success('Height conversion finished. Click button below to download new CSV.')
+            st.success('Height conversion finished. Click button below to download new CSV.')
     
-                def convert_df(df):
-                     return df.to_csv(index=False).encode('utf-8')
-    
-                csv = convert_df(df)
-                filename = uploaded_csv.name.split('.')[0] + '_orthometric.csv'
-    
+            # Create the zip file, convert the dataframes to CSV, and save inside the zip
+            
+            if len(dfs)==1:
+                csv = dfs[0].to_csv(index=False).encode('utf-8')
+                filename = filenames[0].split('.')[0] + '_orthometric.csv'
+
                 st.download_button(
                      label="Download Converted Geotags CSV",
                      data=csv,
                      file_name=filename,
                      mime='text/csv',
                  )
-        st.stop()
+                
+            else:                
+                with zipfile.ZipFile('Converted_CSV.zip', 'w') as csv_zip:
+                    file_ctr = 0
+                    for df in dfs:
+                        csv_zip.writestr(filenames[file_ctr].split('.')[0] + '_orthometric.csv', df.to_csv(index=False).encode('utf-8'))
+                        file_ctr += 1   
+                
+                # Download button for the zip file
+                
+                fp = open('Converted_CSV.zip', 'rb')
+                st.download_button(
+                    label="Download Converted Geotags CSV",
+                    data=fp,
+                    file_name='Converted_CSV.zip',
+                    mime='application/zip',
+            )
+    st.stop()
 else:
     st.stop()
