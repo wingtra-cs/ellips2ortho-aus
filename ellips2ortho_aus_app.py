@@ -201,10 +201,10 @@ if uploaded:
     # Geoid Selection
     
     geoid_select = st.selectbox('Please Choose Desired Geoid', ('<select>', 'AusGeoid09', 'AusGeoid20'))
-    if not geoid_select=='<select>':
+    if geoid_select != '<select>':
         st.write('You selected:', geoid_select)
     
-    if uploaded and not geoid_select=='<select>':
+    if uploaded and geoid_select != '<select>':
         if st.button('CONVERT HEIGHTS'):
             aws_server = '/vsicurl/https://geoid.s3-ap-southeast-2.amazonaws.com/'
             geoid09_file = aws_server + 'AUSGeoid/AUSGeoid09_V1.01.tif'
@@ -212,7 +212,7 @@ if uploaded:
             file_ctr = 0
             
             for df in dfs:
-                if geoid_select=='AusGeoid09':
+                if geoid_select == 'AusGeoid09':
                     ortho = []
                     geoid09 = rasterio.open(geoid09_file)
                     points = list(zip(df[lon].tolist(), df[lat].tolist()))
@@ -261,7 +261,7 @@ if uploaded:
     
             # Create the zip file, convert the dataframes to CSV, and save inside the zip
             
-            if len(dfs)==1:
+            if len(dfs) == 1:
                 csv = dfs[0].to_csv(index=False).encode('utf-8')
                 filename = filenames[0].split('.')[0] + '_orthometric.csv'
 
