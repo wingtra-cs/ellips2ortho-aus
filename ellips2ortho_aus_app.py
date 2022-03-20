@@ -206,8 +206,9 @@ if uploaded:
     
     if uploaded and not geoid_select=='<select>':
         if st.button('CONVERT HEIGHTS'):
-            geoid09_file = './au_ga_AUSGeoid09_V1.01.tif'
-            geoid20_file = './au_ga_AUSGeoid2020_20170908.tif'
+            aws_server = '/vsicurl/https://geoid.s3-ap-southeast-2.amazonaws.com/'
+            geoid09_file = aws_server + 'AUSGeoid/AUSGeoid09_V1.01.tif'
+            geoid20_file = aws_server + 'AUSGeoid/AUSGeoid2020_RELEASEV20170908.tif'
             file_ctr = 0
             
             for df in dfs:
