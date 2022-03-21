@@ -214,7 +214,7 @@ if uploaded:
             for df in dfs:
                 if geoid_select == 'AusGeoid09':
                     ortho = []
-                    geoid09 = rasterio.open(geoid09_file)
+                    geoid09 = rasterio.open(geoid09_file, crs='EPSG:4939')
                     points = list(zip(df[lon].tolist(), df[lat].tolist()))
         
                     i = 0
@@ -229,7 +229,7 @@ if uploaded:
         
                 else:
                     ortho = []
-                    geoid20 = rasterio.open(geoid20_file)
+                    geoid20 = rasterio.open(geoid20_file, crs='EPSG:7843')
         
                     # Convert Coordinates
                     lat_gda20 = []
