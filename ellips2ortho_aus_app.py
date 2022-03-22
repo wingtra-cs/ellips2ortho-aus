@@ -200,7 +200,7 @@ if uploaded:
     
     # Geoid Selection
     
-    geoid_select = st.selectbox('Please Choose Desired Geoid', ('<select>', 'AusGeoid09', 'AusGeoid20'))
+    geoid_select = st.selectbox('Please Choose Desired Geoid', ('<select>', 'AusGeoid09', 'AusGeoid2020'))
     if geoid_select != '<select>':
         st.write('You selected:', geoid_select)
     
