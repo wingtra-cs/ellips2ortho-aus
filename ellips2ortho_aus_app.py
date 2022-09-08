@@ -1,8 +1,8 @@
+from ntv2reader_lib import *
 import math
 import numpy
 import pandas as pd
 import pydeck as pdk
-import rasterio.sample
 import requests
 import streamlit as st
 import zipfile
@@ -18,6 +18,8 @@ st.sidebar.write('The selection of a geoid model automatically adjusts the horiz
 st.sidebar.write('If you have any questions regarding the application, please contact us at support@wingtra.com.')
 st.sidebar.markdown('#')
 st.sidebar.info('This is a prototype application. Wingtra AG does not guarantee correct functionality. Use with discretion.')
+
+# GDA 94 to GDA 2020 Conversion
 
 def geo_to_cart(lat, lon, h):
     lat_rad = (lat/180)*math.pi
@@ -116,7 +118,7 @@ for uploaded_csv in uploaded_csvs:
     if uploaded_csv is not None:
         uploaded = True
     else:
-        uplaoded = False
+        uploaded = False
 
 # Checking if upload of all CSVs is successful
 
@@ -201,35 +203,33 @@ if uploaded:
     # Geoid Selection
     
     geoid_select = st.selectbox('Please Choose Desired Geoid', ('<select>', 'AusGeoid09', 'AusGeoid2020'))
-    if geoid_select != '<select>':
+    if not geoid_select=='<select>':
         st.write('You selected:', geoid_select)
     
-    if uploaded and geoid_select != '<select>':
+    if uploaded and not geoid_select=='<select>':
         if st.button('CONVERT HEIGHTS'):
-            aws_server = '/vsicurl/https://geoid.s3-ap-southeast-2.amazonaws.com/'
-            geoid09_file = aws_server + 'AUSGeoid/AUSGeoid09_V1.01.tif'
-            geoid20_file = aws_server + 'AUSGeoid/AUSGeoid2020_RELEASEV20170908.tif'
+            geoid09_gsb = 'AUSGeoid09_V1.01.gsb'
+            geoid20_gsb = 'AUSGeoid2020_20180201.gsb'
+            grids = NTv2ReaderBinary()
+            
             file_ctr = 0
             
             for df in dfs:
-                if geoid_select == 'AusGeoid09':
+                if geoid_select=='AusGeoid09':
                     ortho = []
-                    geoid09 = rasterio.open(geoid09_file, crs='EPSG:4939')
-                    points = list(zip(df[lon].tolist(), df[lat].tolist()))
-        
-                    i = 0
-                    for val in geoid09.sample(points):
-                        ortho.append(df[height][i] - val[0])
-                        i += 1
+
+                    for x in range(len(df[height])):
+                        N = grids.ntv2reader(geoid09_gsb, df[lat][x],df[lon][x], 'bilinear')[0]
+                        ortho.append(df[height][x] - N)
         
                     df[height] = ortho
                     df.rename(columns={lat: 'latitude GDA94 [decimal degrees]',
                                        lon: 'longitude GDA94 [decimal degrees]',
                                        height: 'orthometric height AusGeoid09 [meters]'}, inplace=True)
+                    
         
                 else:
                     ortho = []
-                    geoid20 = rasterio.open(geoid20_file, crs='EPSG:7843')
         
                     # Convert Coordinates
                     lat_gda20 = []
@@ -241,18 +241,15 @@ if uploaded:
                         lat_gda20.append(la)
                         lon_gda20.append(lo)
                         h_gda20.append(h)
-        
-                    points = list(zip(lon_gda20,lat_gda20))
-        
-                    i = 0
-                    for val in geoid20.sample(points):
-                        ortho.append(h_gda20[i] - val[0])
-                        i += 1
-        
+           
+                    for x in range(len(df[height])):
+                        N = grids.ntv2reader(geoid20_gsb, lat_gda20[x], lon_gda20[x], 'bilinear')[0]
+                        ortho.append(h_gda20[x] - N)      
+           
                     df[lat] = lat_gda20
                     df[lon] = lon_gda20
                     df[height] = ortho
-        
+            
                     df.rename(columns={lat: 'latitude GDA20 [decimal degrees]',
                                        lon: 'longitude GDA20 [decimal degrees]',
                                        height: 'orthometric height AusGeoid20 [meters]'}, inplace=True)
@@ -261,7 +258,7 @@ if uploaded:
     
             # Create the zip file, convert the dataframes to CSV, and save inside the zip
             
-            if len(dfs) == 1:
+            if len(dfs)==1:
                 csv = dfs[0].to_csv(index=False).encode('utf-8')
                 filename = filenames[0].split('.')[0] + '_orthometric.csv'
 
