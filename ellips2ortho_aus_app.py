@@ -1,4 +1,4 @@
-from ntv2reader_lib import *
+from ntv2reader import *
 import math
 import numpy
 import pandas as pd
@@ -210,7 +210,6 @@ if uploaded:
         if st.button('CONVERT HEIGHTS'):
             geoid09_gsb = 'AUSGeoid09_V1.01.gsb'
             geoid20_gsb = 'AUSGeoid2020_20180201.gsb'
-            grids = NTv2ReaderBinary()
             
             file_ctr = 0
             
@@ -218,8 +217,9 @@ if uploaded:
                 if geoid_select=='AusGeoid09':
                     ortho = []
 
+                    geoid09_grid = read_ntv2_file(geoid09_gsb)
                     for x in range(len(df[height])):
-                        N = grids.ntv2reader(geoid09_gsb, df[lat][x],df[lon][x], 'bilinear')[0]
+                        N = interpolate_ntv2(geoid09_grid, df[lat][x],df[lon][x], 'bicubic')[0]
                         ortho.append(df[height][x] - N)
         
                     df[height] = ortho
@@ -241,9 +241,10 @@ if uploaded:
                         lat_gda20.append(la)
                         lon_gda20.append(lo)
                         h_gda20.append(h)
-           
+                    
+                    geoid20_grid = read_ntv2_file(geoid20_gsb)                   
                     for x in range(len(df[height])):
-                        N = grids.ntv2reader(geoid20_gsb, lat_gda20[x], lon_gda20[x], 'bilinear')[0]
+                        N = interpolate_ntv2(geoid20_grid, lat_gda20[x], lon_gda20[x], 'bilinear')[0]
                         ortho.append(h_gda20[x] - N)      
            
                     df[lat] = lat_gda20
