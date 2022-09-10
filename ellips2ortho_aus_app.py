@@ -145,7 +145,6 @@ def interpolate_raster(file, lat, lon):
     
     return interp_val[0]
 
-
 # Upload button for CSVs
 
 uploaded_csvs = st.file_uploader('Please Select Geotags CSV.', accept_multiple_files=True)
@@ -248,19 +247,12 @@ if uploaded:
             aws_server = '/vsicurl/https://geoid.s3-ap-southeast-2.amazonaws.com/'
             geoid09 = aws_server + 'AUSGeoid/AUSGeoid09_V1.01.tif'
             geoid20 = aws_server + 'AUSGeoid/AUSGeoid2020_RELEASEV20170908.tif'
-            #geoid09_gsb = 'AUSGeoid09_V1.01.gsb'
-            #geoid20_gsb = 'AUSGeoid2020_20180201.gsb'
             
             file_ctr = 0
             
             for df in dfs:
                 if geoid_select=='AusGeoid09':
                     ortho = []
-
-                    # geoid09_grid = read_ntv2_file(geoid09_gsb)
-                    # for x in range(len(df[height])):
-                    #     N = interpolate_ntv2(geoid09_grid, df[lat][x],df[lon][x], 'bicubic')[0]
-                    #     ortho.append(df[height][x] - N)
                         
                     for x in range(len(df[height])):
                         N = interpolate_raster(geoid09, df[lat][x],df[lon][x])
@@ -269,9 +261,7 @@ if uploaded:
                     df[height] = ortho
                     df.rename(columns={lat: 'latitude GDA94 [decimal degrees]',
                                        lon: 'longitude GDA94 [decimal degrees]',
-                                       height: 'orthometric height AusGeoid09 [meters]'}, inplace=True)
-                    
-        
+                                       height: 'orthometric height AusGeoid09 [meters]'}, inplace=True)                        
                 else:
                     ortho = []
         
@@ -286,11 +276,6 @@ if uploaded:
                         lon_gda20.append(lo)
                         h_gda20.append(h)
                     
-                    # geoid20_grid = read_ntv2_file(geoid20_gsb)                   
-                    # for x in range(len(df[height])):
-                    #     N = interpolate_ntv2(geoid20_grid, lat_gda20[x], lon_gda20[x], 'bilinear')[0]
-                    #     ortho.append(h_gda20[x] - N)
-                                         
                     for x in range(len(df[height])):
                         N = interpolate_raster(geoid20, lat_gda20[x], lon_gda20[x])
                         ortho.append(h_gda20[x] - N)                           
