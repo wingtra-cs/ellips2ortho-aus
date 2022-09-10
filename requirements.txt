@@ -8,5 +8,6 @@ leafmap
 localtileserver
 nbserverproxy
 rasterio
+scipy
 streamlit
 streamlit-option-menu
