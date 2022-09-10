@@ -1,6 +1,7 @@
-from ntv2reader import *
+from osgeo import gdal
+from scipy.interpolate import griddata
 import math
-import numpy
+import numpy as np
 import pandas as pd
 import pydeck as pdk
 import requests
@@ -51,12 +52,12 @@ def cart_to_cart(x0, y0, z0):
     RzRad = ((Rz/3600)/180)*math.pi
     Scale = 1 + (Sc/1000000)
     
-    T = numpy.zeros(shape=(3,1))
+    T = np.zeros(shape=(3,1))
     T[0][0] = Tx
     T[1][0] = Ty
     T[2][0] = Tz
     
-    R = numpy.zeros(shape=(3,3))
+    R = np.zeros(shape=(3,3))
     R[0][0] = math.cos(RyRad)*math.cos(RzRad)
     R[0][1] = math.cos(RyRad)*math.sin(RzRad)
     R[0][2] = -math.sin(RyRad)
@@ -69,12 +70,12 @@ def cart_to_cart(x0, y0, z0):
     R[2][1] = math.cos(RxRad)*math.sin(RyRad)*math.sin(RzRad) - math.sin(RxRad)*math.cos(RzRad) 
     R[2][2] = math.cos(RxRad)*math.cos(RyRad)
     
-    Xold = numpy.zeros(shape=(3,1))
+    Xold = np.zeros(shape=(3,1))
     Xold[0][0] = x0
     Xold[1][0] = y0
     Xold[2][0] = z0
 
-    Xnew = T + Scale*numpy.matmul(R, Xold)
+    Xnew = T + Scale*np.matmul(R, Xold)
     
     return Xnew[0][0], Xnew[1][0], Xnew[2][0]
 
@@ -108,6 +109,42 @@ def gda94_to_gda2020(lat, lon, h):
     x1, y1, z1 = cart_to_cart(x, y, z)
     
     return cart_to_geo(x1, y1, z1)
+
+# Interpolation of Geoid Undulation
+
+def interpolate_raster(file, lat, lon):
+    f = gdal.Open(file)
+    band = f.GetRasterBand(1)
+    
+    # Get Raster Information
+    transform = f.GetGeoTransform()
+    res = transform[1]
+    
+    # Define point as row and column
+    column = (lon - transform[0]) / transform[1]
+    row = (lat - transform[3]) / transform[5]
+    
+    # Create a 5 x 5 grid of surrounding data
+    surround_data = (band.ReadAsArray(np.floor(column-2), np.floor(row-2), 5, 5))
+    lon_c = transform[0] + np.floor(column) * res
+    lat_c = transform[3] - np.floor(row) * res
+    
+    # Extract geoid undulation values of surrounding data
+    count = -1
+    pos = np.zeros((25,2))
+    surround_data_v = np.zeros((25,1))
+    
+    for k in range(-2,3):
+        for j in range(-2,3):
+            count += 1
+            pos[count] = (lon_c+j*res, lat_c-k*res)
+            surround_data_v[count] = surround_data[k+2,j+2]
+    
+    # Do a cubic interpolation of surrounding data
+    interp_val = griddata(pos, surround_data_v, (lon, lat),method='cubic')
+    
+    return interp_val[0]
+
 
 # Upload button for CSVs
 
@@ -208,8 +245,11 @@ if uploaded:
     
     if uploaded and not geoid_select=='<select>':
         if st.button('CONVERT HEIGHTS'):
-            geoid09_gsb = 'AUSGeoid09_V1.01.gsb'
-            geoid20_gsb = 'AUSGeoid2020_20180201.gsb'
+            aws_server = '/vsicurl/https://geoid.s3-ap-southeast-2.amazonaws.com/'
+            geoid09 = aws_server + 'AUSGeoid/AUSGeoid09_V1.01.tif'
+            geoid20 = aws_server + 'AUSGeoid/AUSGeoid2020_RELEASEV20170908.tif'
+            #geoid09_gsb = 'AUSGeoid09_V1.01.gsb'
+            #geoid20_gsb = 'AUSGeoid2020_20180201.gsb'
             
             file_ctr = 0
             
@@ -217,9 +257,13 @@ if uploaded:
                 if geoid_select=='AusGeoid09':
                     ortho = []
 
-                    geoid09_grid = read_ntv2_file(geoid09_gsb)
+                    # geoid09_grid = read_ntv2_file(geoid09_gsb)
+                    # for x in range(len(df[height])):
+                    #     N = interpolate_ntv2(geoid09_grid, df[lat][x],df[lon][x], 'bicubic')[0]
+                    #     ortho.append(df[height][x] - N)
+                        
                     for x in range(len(df[height])):
-                        N = interpolate_ntv2(geoid09_grid, df[lat][x],df[lon][x], 'bicubic')[0]
+                        N = interpolate_raster(geoid09, df[lat][x],df[lon][x])
                         ortho.append(df[height][x] - N)
         
                     df[height] = ortho
@@ -242,10 +286,14 @@ if uploaded:
                         lon_gda20.append(lo)
                         h_gda20.append(h)
                     
-                    geoid20_grid = read_ntv2_file(geoid20_gsb)                   
+                    # geoid20_grid = read_ntv2_file(geoid20_gsb)                   
+                    # for x in range(len(df[height])):
+                    #     N = interpolate_ntv2(geoid20_grid, lat_gda20[x], lon_gda20[x], 'bilinear')[0]
+                    #     ortho.append(h_gda20[x] - N)
+                                         
                     for x in range(len(df[height])):
-                        N = interpolate_ntv2(geoid20_grid, lat_gda20[x], lon_gda20[x], 'bilinear')[0]
-                        ortho.append(h_gda20[x] - N)      
+                        N = interpolate_raster(geoid20, lat_gda20[x], lon_gda20[x])
+                        ortho.append(h_gda20[x] - N)                           
            
                     df[lat] = lat_gda20
                     df[lon] = lon_gda20
