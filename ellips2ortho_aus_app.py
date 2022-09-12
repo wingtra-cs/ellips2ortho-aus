@@ -20,7 +20,7 @@ st.sidebar.write('If you have any questions regarding the application, please co
 st.sidebar.markdown('#')
 st.sidebar.info('This is a prototype application. Wingtra AG does not guarantee correct functionality. Use with discretion.')
 
-# GDA 94 to GDA 2020 Conversion
+# Transform GDA2020 to GDA94
 
 def geo_to_cart(lat, lon, h):
     lat_rad = (lat/180)*math.pi
@@ -74,8 +74,9 @@ def cart_to_cart(x0, y0, z0):
     Xold[0][0] = x0
     Xold[1][0] = y0
     Xold[2][0] = z0
-
-    Xnew = T + Scale*np.matmul(R, Xold)
+    
+    Rinv = np.linalg.inv(R)
+    Xnew = np.matmul(Rinv, (1/Scale)*(Xold - T))
     
     return Xnew[0][0], Xnew[1][0], Xnew[2][0]
 
@@ -104,7 +105,7 @@ def cart_to_geo(x1, y1, z1):
 
     return lat, lon, h
 
-def gda94_to_gda2020(lat, lon, h):
+def gda2020_to_gda94(lat, lon, h):
     x, y, z = geo_to_cart(lat, lon, h)
     x1, y1, z1 = cart_to_cart(x, y, z)
     
@@ -141,9 +142,10 @@ def interpolate_raster(file, lat, lon):
             surround_data_v[count] = surround_data[k+2,j+2]
     
     # Do a cubic interpolation of surrounding data
-    interp_val = griddata(pos, surround_data_v, (lon, lat),method='cubic')
+    interp_val = griddata(pos, surround_data_v, (lon, lat), method='cubic')
     
     return interp_val[0]
+
 
 # Upload button for CSVs
 
@@ -253,37 +255,39 @@ if uploaded:
             for df in dfs:
                 if geoid_select=='AusGeoid09':
                     ortho = []
+
+                    # Convert Coordinates
+                    lat_gda94 = []
+                    lon_gda94 = []
+                    h_gda94 = []
+        
+                    for x in range(len(df[lat])):
+                        la, lo, h = gda2020_to_gda94(df[lat][x], df[lon][x], df[height][x])
+                        lat_gda94.append(la)
+                        lon_gda94.append(lo)
+                        h_gda94.append(h)
                         
                     for x in range(len(df[height])):
-                        N = interpolate_raster(geoid09, df[lat][x],df[lon][x])
-                        ortho.append(df[height][x] - N)
+                        N = interpolate_raster(geoid09, lat_gda94[x], lon_gda94[x])
+                        ortho.append(h_gda94[x] - N)
         
+                    df[lat] = lat_gda94
+                    df[lon] = lon_gda94
                     df[height] = ortho
                     df.rename(columns={lat: 'latitude GDA94 [decimal degrees]',
                                        lon: 'longitude GDA94 [decimal degrees]',
-                                       height: 'orthometric height AusGeoid09 [meters]'}, inplace=True)                        
+                                       height: 'orthometric height AusGeoid09 [meters]'}, inplace=True)
+                    
+        
                 else:
                     ortho = []
-        
-                    # Convert Coordinates
-                    lat_gda20 = []
-                    lon_gda20 = []
-                    h_gda20 = []
-        
-                    for x in range(len(df[lat])):
-                        la, lo, h = gda94_to_gda2020(df[lat][x], df[lon][x], df[height][x])
-                        lat_gda20.append(la)
-                        lon_gda20.append(lo)
-                        h_gda20.append(h)
-                    
+                                         
                     for x in range(len(df[height])):
-                        N = interpolate_raster(geoid20, lat_gda20[x], lon_gda20[x])
-                        ortho.append(h_gda20[x] - N)                           
+                        N = interpolate_raster(geoid20, df[lat][x], df[lon][x])
+                        ortho.append(df[height][x] - N)                           
            
-                    df[lat] = lat_gda20
-                    df[lon] = lon_gda20
-                    df[height] = ortho
-            
+
+                    df[height] = ortho            
                     df.rename(columns={lat: 'latitude GDA20 [decimal degrees]',
                                        lon: 'longitude GDA20 [decimal degrees]',
                                        height: 'orthometric height AusGeoid20 [meters]'}, inplace=True)
