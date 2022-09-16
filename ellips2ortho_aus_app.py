@@ -8,7 +8,7 @@ import requests
 import streamlit as st
 import zipfile
 
-# Convert geographic coordiantes to Cartesian
+# Convert geographic coordinates to cartesian
 
 def geo_to_cart(lat, lon, h):
     '''
@@ -74,7 +74,6 @@ def cart_to_cart(source_datum, x0, y0, z0):
 
     '''
 
-        
     Tx = 0.06155
     Ty = -0.01087
     Tz = -0.04019
@@ -219,7 +218,6 @@ def interpolate_raster(file, lat, lon):
         interpolated value of geoid at point.
 
     '''
-    
     f = gdal.Open(file)
     band = f.GetRasterBand(1)
     
@@ -227,16 +225,16 @@ def interpolate_raster(file, lat, lon):
     transform = f.GetGeoTransform()
     res = transform[1]
     
-    # Define point as row and column
+    # Define point position as row and column in raster
     column = (lon - transform[0]) / transform[1]
     row = (lat - transform[3]) / transform[5]
     
-    # Create a 5 x 5 grid of surrounding data
+    # Create a 5 x 5 grid of surrounding the point
     surround_data = (band.ReadAsArray(np.floor(column-2), np.floor(row-2), 5, 5))
     lon_c = transform[0] + np.floor(column) * res
     lat_c = transform[3] - np.floor(row) * res
     
-    # Extract geoid undulation values of surrounding data
+    # Extract geoid undulation values of the 5 x 5 grid
     count = -1
     pos = np.zeros((25,2))
     surround_data_v = np.zeros((25,1))
@@ -247,9 +245,9 @@ def interpolate_raster(file, lat, lon):
             pos[count] = (lon_c+j*res, lat_c-k*res)
             surround_data_v[count] = surround_data[k+2,j+2]
     
-    # Do a cubic interpolation of surrounding data
+    # Do a cubic interpolation of surrounding data and extract value at point
     interp_val = griddata(pos, surround_data_v, (lon, lat), method='cubic')
-    
+
     return interp_val[0]
 
 def main():   
@@ -300,6 +298,20 @@ def main():
             lon = 'longitude [decimal degrees]'
             height = 'altitude [meter]'
             
+            # Check if CSV is in the correct format
+            
+            format_check = True
+            for column in required_columns:
+                if column not in list(df.columns):
+                    msg = f'{column} is not in {uploaded_csv.name}.'
+                    st.text(msg)
+                    format_check = False
+            
+            if not format_check:
+                msg = f'{uploaded_csv.name} is not in the correct format. Delete or reupload to proceed.'
+                st.error(msg)
+                st.stop()
+
             # Check if locations are within the United States
             
             url = 'http://api.geonames.org/countryCode?lat='
@@ -307,20 +319,7 @@ def main():
             country = requests.get(geo_request).json()['countryName']
             
             if country != 'Australia':
-                msg = 'Locations in ' + uploaded_csv.name + ' are outside Australia. Please remove to proceed.'
-                st.error(msg)
-                st.stop()
-    
-            # Check if CSV is in the correct format
-            
-            format_check = True
-            for column in required_columns:
-                if column not in list(df.columns):
-                    st.text(column + ' is not in ' + uploaded_csv.name + '.')
-                    format_check = False
-            
-            if not format_check:
-                msg = uploaded_csv.name + ' is not in the correct format. Delete or reupload to proceed.'
+                msg = f'Locations in {uploaded_csv.name} are outside Australia. Please remove to proceed.'
                 st.error(msg)
                 st.stop()
         
@@ -355,14 +354,16 @@ def main():
              ))
         
         # Base Datum Selection
+        datum_dict = {'GDA94': 1, 'GDA2020': 2}
         datum_select = st.selectbox('Please Choose CRS of Base Location Used in PPK Geotagging', 
                                     ('<select>', 'GDA94', 'GDA2020'))    
         if datum_select != '<select>':
             st.write('You selected:', datum_select)
         
         # Geoid Selection
-        
+        geoid_dict = {'AusGeoid09': 1, 'AusGeoid2020': 2}
         geoid_select = st.selectbox('Please Choose Desired Geoid', ('<select>', 'AusGeoid09', 'AusGeoid2020'))
+        
         if geoid_select != '<select>':
             st.write('You selected:', geoid_select)
         
@@ -373,7 +374,7 @@ def main():
                 geoid20 = aws_server + 'AUSGeoid/AUSGeoid2020_RELEASEV20170908.tif'
                 
                 # Resolve base CRS and geoid conflict
-                if (datum_select == 'GDA94' and geoid_select == 'AusGeoid2020') or (datum_select == 'GDA2020' and geoid_select == 'AusGeoid09'):
+                if datum_dict[datum_select] != geoid_dict[geoid_select]:
                     # Convert Coordinates to Correct Datum
                     lat_new = []
                     lon_new = []
