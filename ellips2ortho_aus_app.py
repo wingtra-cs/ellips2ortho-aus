@@ -366,7 +366,7 @@ def main():
         if geoid_select != '<select>':
             st.write('You selected:', geoid_select)
         
-        if uploaded and geoid_select != '<select>':
+        if uploaded and datum_select != '<select>' and geoid_select != '<select>':
             if st.button('CONVERT HEIGHTS'):
                 aws_server = '/vsicurl/https://geoid.s3-ap-southeast-2.amazonaws.com/'
                 geoid09 = aws_server + 'AUSGeoid/AUSGeoid09_V1.01.tif'
