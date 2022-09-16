@@ -315,7 +315,7 @@ def main():
             # Check if locations are within the United States
             
             url = 'http://api.geonames.org/countryCode?lat='
-            geo_request = url + str(df[lat][0]) + '&lng=' + str(df[lon][0]) + '&type=json&username=irwinamago'
+            geo_request = url + f'{df[lat][0]}&lng={df[lon][0]}&type=json&username=irwinamago'
             country = requests.get(geo_request).json()['countryName']
             
             if country != 'Australia':
