@@ -373,28 +373,31 @@ def main():
                 geoid09 = aws_server + 'AUSGeoid/AUSGeoid09_V1.01.tif'
                 geoid20 = aws_server + 'AUSGeoid/AUSGeoid2020_RELEASEV20170908.tif'
                 
-                # Resolve base CRS and geoid conflict
-                if datum_dict[datum_select] != geoid_dict[geoid_select]:
-                    # Convert Coordinates to Correct Datum
-                    lat_new = []
-                    lon_new = []
-                    h_new = []
-                            
-                    for la, lo, h in zip(df[lat], df[lon], df[height]):
-                        lat_conv, lon_conv, h_conv = gda_conv(datum_select, la, lo, h)
-                        lat_new.append(lat_conv)
-                        lon_new.append(lon_conv)
-                        h_new.append(h_conv)
-                    
-                    df[lat] = lat_new
-                    df[lon] = lon_new
-                    df[height] = h_new
+
                     
                 for df in dfs:
+                    # Resolve base CRS and geoid conflict
+                    if datum_dict[datum_select] != geoid_dict[geoid_select]:
+                        # Convert Coordinates to Correct Datum
+                        lat_new = []
+                        lon_new = []
+                        h_new = []
+                                
+                        for la, lo, h in zip(df[lat], df[lon], df[height]):
+                            lat_conv, lon_conv, h_conv = gda_conv(datum_select, la, lo, h)
+                            lat_new.append(lat_conv)
+                            lon_new.append(lon_conv)
+                            h_new.append(h_conv)
+                        
+                        df[lat] = lat_new
+                        df[lon] = lon_new
+                        df[height] = h_new
+                    
+                    # Height Conversion
                     if geoid_select == 'AusGeoid09':
                         ortho = []
                         
-                        # Height Conversion
+                        
                         for la, lo, h in zip(df[lat], df[lon], df[height]):
                             N = interpolate_raster(geoid09, la, lo)
                             ortho.append(h - N)                 
@@ -406,8 +409,7 @@ def main():
                     
                     else:
                         ortho = []
-                                                                   
-                        # Height Conversion                                         
+                                                                                                          
                         for la, lo, h in zip(df[lat], df[lon], df[height]):
                             N = interpolate_raster(geoid20, la, lo)
                             ortho.append(h - N)
