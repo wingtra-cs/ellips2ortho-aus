@@ -372,13 +372,11 @@ def main():
                 aws_server = '/vsicurl/https://geoid.s3-ap-southeast-2.amazonaws.com/'
                 geoid09 = aws_server + 'AUSGeoid/AUSGeoid09_V1.01.tif'
                 geoid20 = aws_server + 'AUSGeoid/AUSGeoid2020_RELEASEV20170908.tif'
-                
-
-                    
+                                   
                 for df in dfs:
+                    
                     # Resolve base CRS and geoid conflict
                     if datum_dict[datum_select] != geoid_dict[geoid_select]:
-                        # Convert Coordinates to Correct Datum
                         lat_new = []
                         lon_new = []
                         h_new = []
