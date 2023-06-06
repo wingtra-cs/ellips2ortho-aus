@@ -2,9 +2,11 @@
 geemap
 geopandas
 geopy
+gdal
 jupyter-server-proxy
 localtileserver
 nbserverproxy
+osgeo
 rasterio
 scipy
 streamlit
