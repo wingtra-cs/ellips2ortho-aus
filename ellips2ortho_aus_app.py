@@ -1,4 +1,4 @@
-import gdal
+from osgeo import gdal
 from scipy.interpolate import griddata
 import math as m
 import numpy as np
