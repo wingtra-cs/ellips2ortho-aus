@@ -3,8 +3,6 @@ geemap
 geopandas
 geopy
 jupyter-server-proxy
-keplergl
-leafmap
 localtileserver
 nbserverproxy
 rasterio
