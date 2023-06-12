@@ -6,7 +6,6 @@ gdal
 jupyter-server-proxy
 localtileserver
 nbserverproxy
-osgeo
 rasterio
 scipy
 streamlit
