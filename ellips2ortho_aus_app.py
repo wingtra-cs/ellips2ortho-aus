@@ -1,5 +1,6 @@
 import subprocess
 import sys
+import streamlit as st
 
 GDAL = 'https://github.com/girder/large_image_wheels/raw/wheelhouse/GDAL-3.8.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl#sha256=86bdb99f6481b6bc1751f55295b118fe18d1dba3d0327863bb16741f9ded7409'
 @st.cache_data
@@ -15,7 +16,6 @@ import numpy as np
 import pandas as pd
 import pydeck as pdk
 import requests
-import streamlit as st
 import zipfile
 
 # Convert geographic coordinates to cartesian
