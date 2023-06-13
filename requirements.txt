@@ -1,7 +1,6 @@
 geopandas
-geopy
-rasterio
-scipy
 streamlit==1.12.2
 streamlit-bokeh-events
 --find-links=https://github.com/girder/large_image_wheels/raw/wheelhouse/GDAL-3.8.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl#sha256=86bdb99f6481b6bc1751f55295b118fe18d1dba3d0327863bb16741f9ded7409
+rasterio
+scipy
