@@ -2,6 +2,7 @@ import subprocess
 import sys
 
 GDAL = 'https://github.com/girder/large_image_wheels/raw/wheelhouse/GDAL-3.8.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl#sha256=86bdb99f6481b6bc1751f55295b118fe18d1dba3d0327863bb16741f9ded7409'
+@st.cache_data
 def install(package):
     subprocess.check_call([sys.executable, "-m", "pip", "install", package])
 
